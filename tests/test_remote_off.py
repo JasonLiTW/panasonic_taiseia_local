@@ -139,11 +139,12 @@ def _make_entity(
         device=SimpleNamespace(unique_id="test-device", services={}),
     )
     entity = TaiSeiaClimate(coordinator, client, "entry-1", None)
-    options = options or {
-        CONF_REMOTE_OFF_ENTITY: "remote.test",
-        CONF_REMOTE_OFF_COMMAND: "b64:test-command",
-        CONF_REMOTE_OFF_REFRESH_DELAY: 0,
-    }
+    if options is None:
+        options = {
+            CONF_REMOTE_OFF_ENTITY: "remote.test",
+            CONF_REMOTE_OFF_COMMAND: "b64:test-command",
+            CONF_REMOTE_OFF_REFRESH_DELAY: 0,
+        }
     hass = SimpleNamespace(
         config_entries=_ConfigEntries(options),
         states=_States(remote_state),
