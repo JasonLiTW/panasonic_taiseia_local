@@ -179,6 +179,8 @@ class TaiSeiaClimate(TaiSeiaBaseEntity, ClimateEntity):
             return False
 
         remote_state = self.hass.states.get(remote_entity)
+        # Do not reject state == "off": for some remote integrations it means
+        # the target/activity is off, not that send_command is unavailable.
         if remote_state is None or remote_state.state == STATE_UNAVAILABLE:
             _LOGGER.warning(
                 "[%s] power-off remote %s is unavailable; falling back to TaiSEIA",
