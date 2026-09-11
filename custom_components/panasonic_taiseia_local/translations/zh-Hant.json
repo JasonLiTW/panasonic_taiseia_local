@@ -71,7 +71,7 @@
     "step": {
       "init": {
         "title": "Panasonic TaiSEIA 選項",
-        "description": "主設定：帳號、區網連線與耗電週期（全室共用）。設備設定：名稱、ModelType、輪詢、是否計入全室、控制路徑（混合／本地／雲端）。若尚無主設定，共用項目會顯示於設備選項中。",
+        "description": "主設定：帳號、區網連線與耗電週期（全室共用）。設備設定：名稱、ModelType、輪詢、是否計入全室、控制路徑，以及選用的 IR 輔助關機。設定 IR 關機後會優先透過指定的 remote 發送；若 RM4 不可用或發送明確失敗，會回退 TaiSEIA 關機。IR 成功送出後不會先假設冷氣已關機，而會等待指定秒數再讀取實際狀態。",
         "data": {
           "password": "更新密碼（留空則不變）",
           "refresh_cloud": "重新登入並更新 token",
@@ -91,7 +91,10 @@
           "energy_reset_weekday": "每週星期幾歸零（僅每週週期）",
           "energy_reset_period": "立即重置本期耗電",
           "energy_reset_total": "立即重置累計耗電",
-          "control_mode": "控制路徑（混合＝寫雲端優先／讀本地優先）"
+          "control_mode": "控制路徑（混合＝寫雲端優先／讀本地優先）",
+          "ir_off_remote": "乾燥防霉 IR 關機發射器",
+          "ir_off_command": "乾燥防霉 IR 關機命令（b64:...）",
+          "ir_off_refresh_delay": "IR 關機後重新讀取狀態延遲（秒；0＝停用額外重新整理）"
         }
       }
     }
