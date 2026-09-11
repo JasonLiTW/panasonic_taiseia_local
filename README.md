@@ -192,15 +192,14 @@ See the card README for full options. This integration’s climate / humidifier 
 
 This fork can route an AC `OFF` request through any compatible Home Assistant
 `remote` entity first, while keeping the TaiSEIA climate entity as the single
-source of truth. It is not tied to Broadlink or RM4 hardware.
+source of truth.
 
 Configure it per AC under the integration's device options:
 
 - **Remote entity for alternate AC power-off** — choose any Home Assistant
   `remote` entity that supports `remote.send_command`.
 - **Remote power-off command** — enter the command understood by that remote
-  integration. For Broadlink this can be a learned `b64:...` command, but the
-  feature itself is not Broadlink-specific.
+  integration and accepted by `remote.send_command`.
 - **Delay before refreshing AC state after remote power-off** — after a successful
   remote command, wait this many seconds and refresh the real TaiSEIA state.
   Set to `0` to disable the extra refresh.
