@@ -61,6 +61,7 @@ sys.path.insert(0, str(ROOT / "custom_components"))
 from panasonic_taiseia_local.const import (  # noqa: E402
     CONF_CLOUD_AUTH,
     CONF_CONTROL_MODE,
+    CONF_IR_OFF_COMMAND,
     CONTROL_MODE_CLOUD,
     CONTROL_MODE_HYBRID,
     CONTROL_MODE_LOCAL,
@@ -155,6 +156,16 @@ class RedactAuthTest(unittest.TestCase):
         self.assertEqual(redacted["auth"], "**REDACTED**")
         self.assertEqual(redacted[CONF_CLOUD_AUTH], "**REDACTED**")
         self.assertEqual(redacted["host"], "192.168.0.1")
+
+    def test_ir_command_redacted(self) -> None:
+        redacted = redact_mapping(
+            {
+                CONF_IR_OFF_COMMAND: "b64:example-user-command",
+                "ir_off_remote": "remote.example",
+            }
+        )
+        self.assertEqual(redacted[CONF_IR_OFF_COMMAND], "**REDACTED**")
+        self.assertEqual(redacted["ir_off_remote"], "remote.example")
 
 
 class ControlModeTest(unittest.TestCase):
