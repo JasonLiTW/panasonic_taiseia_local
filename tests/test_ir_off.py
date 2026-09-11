@@ -1,4 +1,4 @@
-"""Regression tests for optional IR-assisted AC power-off."""
+"""Regression tests for optional remote-assisted AC power-off."""
 
 from __future__ import annotations
 
@@ -84,9 +84,9 @@ sys.path.insert(0, str(ROOT / "custom_components"))
 
 from panasonic_taiseia_local.climate import TaiSeiaClimate  # noqa: E402
 from panasonic_taiseia_local.const import (  # noqa: E402
-    CONF_IR_OFF_COMMAND,
-    CONF_IR_OFF_REFRESH_DELAY,
-    CONF_IR_OFF_REMOTE,
+    CONF_REMOTE_OFF_COMMAND,
+    CONF_REMOTE_OFF_REFRESH_DELAY,
+    CONF_REMOTE_OFF_ENTITY,
     STATUS_POWER,
 )
 from homeassistant.components.climate import HVACMode  # noqa: E402
@@ -136,9 +136,9 @@ def _make_entity(
     )
     entity = TaiSeiaClimate(coordinator, client, "entry-1", None)
     options = options or {
-        CONF_IR_OFF_REMOTE: "remote.test",
-        CONF_IR_OFF_COMMAND: "b64:test-command",
-        CONF_IR_OFF_REFRESH_DELAY: 0,
+        CONF_REMOTE_OFF_ENTITY: "remote.test",
+        CONF_REMOTE_OFF_COMMAND: "b64:test-command",
+        CONF_REMOTE_OFF_REFRESH_DELAY: 0,
     }
     hass = SimpleNamespace(
         config_entries=_ConfigEntries(options),
@@ -150,10 +150,10 @@ def _make_entity(
 
 
 class IrOffTest(unittest.IsolatedAsyncioTestCase):
-    async def test_ir_success_returns_true_without_changing_power(self) -> None:
+    async def test_remote_success_returns_true_without_changing_power(self) -> None:
         entity, hass = _make_entity()
 
-        result = await entity._async_try_ir_off()
+        result = await entity._async_try_remote_off()
 
         self.assertTrue(result)
         self.assertEqual(entity.device_status[STATUS_POWER], "1")
@@ -172,7 +172,7 @@ class IrOffTest(unittest.IsolatedAsyncioTestCase):
     async def test_unavailable_remote_requests_fallback(self) -> None:
         entity, hass = _make_entity(remote_state="unavailable")
 
-        result = await entity._async_try_ir_off()
+        result = await entity._async_try_remote_off()
 
         self.assertFalse(result)
         self.assertEqual(hass.services.calls, [])
@@ -180,7 +180,7 @@ class IrOffTest(unittest.IsolatedAsyncioTestCase):
     async def test_off_remote_requests_fallback(self) -> None:
         entity, hass = _make_entity(remote_state="off")
 
-        result = await entity._async_try_ir_off()
+        result = await entity._async_try_remote_off()
 
         self.assertFalse(result)
         self.assertEqual(hass.services.calls, [])
@@ -188,19 +188,19 @@ class IrOffTest(unittest.IsolatedAsyncioTestCase):
     async def test_send_exception_requests_fallback(self) -> None:
         entity, _hass = _make_entity(service_error=RuntimeError("send failed"))
 
-        result = await entity._async_try_ir_off()
+        result = await entity._async_try_remote_off()
 
         self.assertFalse(result)
 
-    async def test_missing_ir_config_requests_fallback(self) -> None:
-        entity, hass = _make_entity(options={CONF_IR_OFF_REFRESH_DELAY: 0})
+    async def test_missing_remote_config_requests_fallback(self) -> None:
+        entity, hass = _make_entity(options={CONF_REMOTE_OFF_REFRESH_DELAY: 0})
 
-        result = await entity._async_try_ir_off()
+        result = await entity._async_try_remote_off()
 
         self.assertFalse(result)
         self.assertEqual(hass.services.calls, [])
 
-    async def test_hvac_off_falls_back_to_taiseia_when_ir_fails(self) -> None:
+    async def test_hvac_off_falls_back_to_taiseia_when_remote_fails(self) -> None:
         entity, _hass = _make_entity(remote_state="unavailable")
         entity.async_write_with_rollback = AsyncMock()
 
@@ -208,7 +208,7 @@ class IrOffTest(unittest.IsolatedAsyncioTestCase):
 
         entity.async_write_with_rollback.assert_awaited_once()
 
-    async def test_hvac_off_skips_taiseia_after_ir_success(self) -> None:
+    async def test_hvac_off_skips_taiseia_after_remote_success(self) -> None:
         entity, _hass = _make_entity()
         entity.async_write_with_rollback = AsyncMock()
 
