@@ -85,8 +85,12 @@ sys.path.insert(0, str(ROOT / "custom_components"))
 from panasonic_taiseia_local.climate import TaiSeiaClimate  # noqa: E402
 from panasonic_taiseia_local.const import (  # noqa: E402
     CONF_REMOTE_OFF_COMMAND,
+    CONF_REMOTE_OFF_DEVICE,
     CONF_REMOTE_OFF_REFRESH_DELAY,
     CONF_REMOTE_OFF_ENTITY,
+    LEGACY_CONF_IR_OFF_COMMAND,
+    LEGACY_CONF_IR_OFF_REFRESH_DELAY,
+    LEGACY_CONF_IR_OFF_REMOTE,
     STATUS_POWER,
 )
 from homeassistant.components.climate import HVACMode  # noqa: E402
@@ -169,6 +173,37 @@ class RemoteOffTest(unittest.IsolatedAsyncioTestCase):
         )
         self.assertTrue(kwargs["blocking"])
 
+    async def test_optional_remote_device_is_forwarded(self) -> None:
+        entity, hass = _make_entity(
+            options={
+                CONF_REMOTE_OFF_ENTITY: "remote.test",
+                CONF_REMOTE_OFF_DEVICE: "Living Room TV",
+                CONF_REMOTE_OFF_COMMAND: "PowerOff",
+                CONF_REMOTE_OFF_REFRESH_DELAY: 0,
+            }
+        )
+
+        result = await entity._async_try_remote_off()
+
+        self.assertTrue(result)
+        args, _kwargs = hass.services.calls[0]
+        self.assertEqual(args[2]["device"], "Living Room TV")
+
+    async def test_legacy_ir_options_still_work(self) -> None:
+        entity, hass = _make_entity(
+            options={
+                LEGACY_CONF_IR_OFF_REMOTE: "remote.test",
+                LEGACY_CONF_IR_OFF_COMMAND: "b64:legacy-command",
+                LEGACY_CONF_IR_OFF_REFRESH_DELAY: 0,
+            }
+        )
+
+        result = await entity._async_try_remote_off()
+
+        self.assertTrue(result)
+        args, _kwargs = hass.services.calls[0]
+        self.assertEqual(args[2]["command"], "b64:legacy-command")
+
     async def test_unavailable_remote_requests_fallback(self) -> None:
         entity, hass = _make_entity(remote_state="unavailable")
 
@@ -177,13 +212,13 @@ class RemoteOffTest(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(result)
         self.assertEqual(hass.services.calls, [])
 
-    async def test_off_remote_requests_fallback(self) -> None:
+    async def test_off_remote_is_still_allowed_for_generic_remote(self) -> None:
         entity, hass = _make_entity(remote_state="off")
 
         result = await entity._async_try_remote_off()
 
-        self.assertFalse(result)
-        self.assertEqual(hass.services.calls, [])
+        self.assertTrue(result)
+        self.assertEqual(len(hass.services.calls), 1)
 
     async def test_send_exception_requests_fallback(self) -> None:
         entity, _hass = _make_entity(service_error=RuntimeError("send failed"))
