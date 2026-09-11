@@ -22,6 +22,7 @@ from .const import (
     DOMAIN,
     ENTRY_TYPE_DEVICE,
     ENTRY_TYPE_HUB,
+    LEGACY_CONF_IR_OFF_COMMAND,
 )
 from .probe_info import (
     decode_status_value,
@@ -42,6 +43,7 @@ _REDACT_KEYS = {
     CONF_REFRESH_TOKEN,
     CONF_CLOUD_AUTH,
     CONF_REMOTE_OFF_COMMAND,
+    LEGACY_CONF_IR_OFF_COMMAND,
     "password",
     "cp_token",
     "refresh_token",
