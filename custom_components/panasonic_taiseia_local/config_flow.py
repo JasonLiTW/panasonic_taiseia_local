@@ -17,6 +17,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_NAME, CONF_PASSWORD
 from homeassistant.core import callback, HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
+from homeassistant.helpers import selector
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 import homeassistant.helpers.config_validation as cv
 
@@ -61,6 +62,9 @@ from .const import (
     CONF_ENTRY_TYPE,
     CONF_HUB_ENTRY_ID,
     CONF_INDOOR_MODEL,
+    CONF_IR_OFF_COMMAND,
+    CONF_IR_OFF_REFRESH_DELAY,
+    CONF_IR_OFF_REMOTE,
     CONF_MAX_CONCURRENT,
     CONF_MODEL_TYPE,
     CONF_REFRESH_TOKEN,
@@ -79,6 +83,7 @@ from .const import (
     DEFAULT_ENERGY_CYCLE_DAYS,
     DEFAULT_ENERGY_RESET_DAY,
     DEFAULT_ENERGY_RESET_WEEKDAY,
+    DEFAULT_IR_OFF_REFRESH_DELAY,
     DEFAULT_MAX_CONCURRENT,
     DEFAULT_REQUEST_RETRIES,
     DEFAULT_REQUEST_RETRY_DELAY,
@@ -919,6 +924,22 @@ class DeviceOptionsFlowHandler(config_entries.OptionsFlow):
             new_options[CONF_ENERGY_INCLUDE_HOUSE] = bool(
                 user_input.get(CONF_ENERGY_INCLUDE_HOUSE, True)
             )
+            if sa_type == TYPE_AC:
+                ir_remote = str(user_input.get(CONF_IR_OFF_REMOTE) or "").strip()
+                ir_command = str(user_input.get(CONF_IR_OFF_COMMAND) or "").strip()
+                if ir_remote:
+                    new_options[CONF_IR_OFF_REMOTE] = ir_remote
+                else:
+                    new_options.pop(CONF_IR_OFF_REMOTE, None)
+                if ir_command:
+                    new_options[CONF_IR_OFF_COMMAND] = ir_command
+                else:
+                    new_options.pop(CONF_IR_OFF_COMMAND, None)
+                new_options[CONF_IR_OFF_REFRESH_DELAY] = float(
+                    user_input.get(
+                        CONF_IR_OFF_REFRESH_DELAY, DEFAULT_IR_OFF_REFRESH_DELAY
+                    )
+                )
             domain = self.hass.data.get(DOMAIN) or {}
             slot = domain.get(entry.entry_id) or {}
             coord = slot.get(DATA_COORDINATOR)
@@ -1066,6 +1087,31 @@ class DeviceOptionsFlowHandler(config_entries.OptionsFlow):
             vol.Optional(CONF_ENERGY_RESET_PERIOD, default=False): bool,
             vol.Optional(CONF_ENERGY_RESET_TOTAL, default=False): bool,
         }
+        if sa_type == TYPE_AC:
+            remote_key = vol.Optional(CONF_IR_OFF_REMOTE)
+            if opts.get(CONF_IR_OFF_REMOTE):
+                remote_key = vol.Optional(
+                    CONF_IR_OFF_REMOTE,
+                    default=opts[CONF_IR_OFF_REMOTE],
+                )
+            schema[remote_key] = selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="remote")
+            )
+            schema[
+                vol.Optional(
+                    CONF_IR_OFF_COMMAND,
+                    default=opts.get(CONF_IR_OFF_COMMAND, ""),
+                )
+            ] = str
+            schema[
+                vol.Optional(
+                    CONF_IR_OFF_REFRESH_DELAY,
+                    default=opts.get(
+                        CONF_IR_OFF_REFRESH_DELAY,
+                        DEFAULT_IR_OFF_REFRESH_DELAY,
+                    ),
+                )
+            ] = vol.All(vol.Coerce(float), vol.Range(min=0, max=30))
         slot = (self.hass.data.get(DOMAIN) or {}).get(entry.entry_id) or {}
         coord = slot.get(DATA_COORDINATOR)
         cloud_only = bool(coord and (getattr(coord, "data", None) or {}).get("cloud_only"))
