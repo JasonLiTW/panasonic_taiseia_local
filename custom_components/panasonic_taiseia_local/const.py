@@ -58,6 +58,13 @@ CONF_DEVICE_TYPE = "device_type"
 CONF_INDOOR_MODEL = "indoor_model"
 CONF_MODEL_TYPE = "model_type"
 
+# Optional IR-assisted AC power-off. The command itself is user-provided in
+# config-entry options; no appliance-specific IR payload is bundled here.
+CONF_IR_OFF_REMOTE = "ir_off_remote"
+CONF_IR_OFF_COMMAND = "ir_off_command"
+CONF_IR_OFF_REFRESH_DELAY = "ir_off_refresh_delay"
+DEFAULT_IR_OFF_REFRESH_DELAY = 2.0
+
 # Energy options (cycle/reset_* are shared domain-wide; others per entry)
 CONF_ENERGY_ENABLED = "energy_enabled"
 CONF_ENERGY_INCLUDE_HOUSE = "energy_include_house"
