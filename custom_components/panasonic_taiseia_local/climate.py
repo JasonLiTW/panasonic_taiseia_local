@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -10,7 +11,7 @@ from homeassistant.components.climate import (
     ClimateEntityFeature,
     HVACMode,
 )
-from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
+from homeassistant.const import ATTR_TEMPERATURE, STATE_UNAVAILABLE, UnitOfTemperature
 from homeassistant.exceptions import HomeAssistantError
 
 from .capability import filter_option_map, supported_values
@@ -27,9 +28,13 @@ from .const import (
     CLIMATE_MAXIMUM_TEMPERATURE,
     CLIMATE_MINIMUM_TEMPERATURE,
     CLIMATE_TEMPERATURE_STEP,
+    CONF_IR_OFF_COMMAND,
+    CONF_IR_OFF_REFRESH_DELAY,
+    CONF_IR_OFF_REMOTE,
     DATA_CLIENT,
     DATA_COORDINATOR,
     DATA_PROFILE,
+    DEFAULT_IR_OFF_REFRESH_DELAY,
     DOMAIN,
     ICON_CLIMATE,
     LABEL_CLIMATE,
@@ -81,7 +86,102 @@ class TaiSeiaClimate(TaiSeiaBaseEntity, ClimateEntity):
 
     def __init__(self, coordinator, client, entry_id, profile) -> None:
         self._profile = profile
+        self._ir_refresh_task: asyncio.Task | None = None
         super().__init__(coordinator, client, entry_id)
+
+    def _ir_off_options(self) -> tuple[str | None, str | None, float]:
+        """Return per-device IR-off configuration."""
+        entry = self.hass.config_entries.async_get_entry(self.entry_id)
+        if entry is None:
+            return None, None, DEFAULT_IR_OFF_REFRESH_DELAY
+        remote_entity = str(entry.options.get(CONF_IR_OFF_REMOTE) or "").strip() or None
+        command = str(entry.options.get(CONF_IR_OFF_COMMAND) or "").strip() or None
+        try:
+            delay = float(
+                entry.options.get(
+                    CONF_IR_OFF_REFRESH_DELAY, DEFAULT_IR_OFF_REFRESH_DELAY
+                )
+            )
+        except (TypeError, ValueError):
+            delay = DEFAULT_IR_OFF_REFRESH_DELAY
+        return remote_entity, command, max(0.0, min(delay, 30.0))
+
+    async def _async_refresh_after_ir(self, delay: float) -> None:
+        """Refresh real appliance state after an IR command."""
+        try:
+            await asyncio.sleep(delay)
+            await self.coordinator.async_request_refresh()
+        except asyncio.CancelledError:
+            raise
+        except Exception as err:  # noqa: BLE001
+            # The IR command already succeeded. Never force a TaiSEIA OFF only
+            # because the follow-up read failed; the AC may be in mold-dry.
+            _LOGGER.warning(
+                "[%s] IR power-off was sent, but delayed status refresh failed: %s",
+                self.label,
+                err,
+            )
+
+    def _schedule_ir_refresh(self, delay: float) -> None:
+        """Keep only the newest delayed refresh after repeated OFF presses."""
+        if self._ir_refresh_task is not None and not self._ir_refresh_task.done():
+            self._ir_refresh_task.cancel()
+        if delay <= 0:
+            self._ir_refresh_task = None
+            return
+        self._ir_refresh_task = self.hass.async_create_task(
+            self._async_refresh_after_ir(delay)
+        )
+
+    async def _async_try_ir_off(self) -> bool:
+        """Send configured IR OFF command; return True only when accepted by HA."""
+        remote_entity, command, refresh_delay = self._ir_off_options()
+        if not remote_entity or not command:
+            return False
+
+        remote_state = self.hass.states.get(remote_entity)
+        if remote_state is None or remote_state.state == STATE_UNAVAILABLE:
+            _LOGGER.warning(
+                "[%s] IR power-off remote %s is unavailable; falling back to TaiSEIA",
+                self.label,
+                remote_entity,
+            )
+            return False
+
+        try:
+            await self.hass.services.async_call(
+                "remote",
+                "send_command",
+                {
+                    "entity_id": remote_entity,
+                    "command": command,
+                },
+                blocking=True,
+            )
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.warning(
+                "[%s] IR power-off via %s failed; falling back to TaiSEIA: %s",
+                self.label,
+                remote_entity,
+                err,
+            )
+            return False
+
+        # Do not optimistically change STATUS_POWER here. Older Panasonic ACs
+        # can remain power=1 while running the post-shutdown mold-dry cycle.
+        _LOGGER.debug(
+            "[%s] IR power-off sent via %s; refreshing state in %.1fs",
+            self.label,
+            remote_entity,
+            refresh_delay,
+        )
+        self._schedule_ir_refresh(refresh_delay)
+        return True
+
+    async def async_will_remove_from_hass(self) -> None:
+        if self._ir_refresh_task is not None and not self._ir_refresh_task.done():
+            self._ir_refresh_task.cancel()
+        await super().async_will_remove_from_hass()
 
     def _mode_table(self) -> list[dict]:
         catalog = climate_hvac_mappings(self._profile)
@@ -170,6 +270,8 @@ class TaiSeiaClimate(TaiSeiaBaseEntity, ClimateEntity):
         _LOGGER.debug("[%s] set_hvac_mode %s", self.label, hvac_mode)
         try:
             if hvac_mode == HVACMode.OFF:
+                if await self._async_try_ir_off():
+                    return
                 prev = self.device_status.get(STATUS_POWER)
                 await self.async_write_with_rollback(SVC_POWER, 0, STATUS_POWER, prev)
                 return
