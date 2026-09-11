@@ -176,6 +176,14 @@ class IrOffTest(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(result)
         self.assertEqual(hass.services.calls, [])
 
+    async def test_off_remote_requests_fallback(self) -> None:
+        entity, hass = _make_entity(remote_state="off")
+
+        result = await entity._async_try_ir_off()
+
+        self.assertFalse(result)
+        self.assertEqual(hass.services.calls, [])
+
     async def test_send_exception_requests_fallback(self) -> None:
         entity, _hass = _make_entity(service_error=RuntimeError("send failed"))
 
