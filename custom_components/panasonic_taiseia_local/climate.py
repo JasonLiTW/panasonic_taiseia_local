@@ -11,7 +11,12 @@ from homeassistant.components.climate import (
     ClimateEntityFeature,
     HVACMode,
 )
-from homeassistant.const import ATTR_TEMPERATURE, STATE_UNAVAILABLE, UnitOfTemperature
+from homeassistant.const import (
+    ATTR_TEMPERATURE,
+    STATE_OFF,
+    STATE_UNAVAILABLE,
+    UnitOfTemperature,
+)
 from homeassistant.exceptions import HomeAssistantError
 
 from .capability import filter_option_map, supported_values
@@ -140,9 +145,12 @@ class TaiSeiaClimate(TaiSeiaBaseEntity, ClimateEntity):
             return False
 
         remote_state = self.hass.states.get(remote_entity)
-        if remote_state is None or remote_state.state == STATE_UNAVAILABLE:
+        if remote_state is None or remote_state.state in {
+            STATE_OFF,
+            STATE_UNAVAILABLE,
+        }:
             _LOGGER.warning(
-                "[%s] IR power-off remote %s is unavailable; falling back to TaiSEIA",
+                "[%s] IR power-off remote %s is off/unavailable; falling back to TaiSEIA",
                 self.label,
                 remote_entity,
             )
