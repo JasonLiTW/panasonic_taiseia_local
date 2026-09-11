@@ -63,6 +63,7 @@ from .const import (
     CONF_HUB_ENTRY_ID,
     CONF_INDOOR_MODEL,
     CONF_REMOTE_OFF_COMMAND,
+    CONF_REMOTE_OFF_DEVICE,
     CONF_REMOTE_OFF_REFRESH_DELAY,
     CONF_REMOTE_OFF_ENTITY,
     CONF_MAX_CONCURRENT,
@@ -95,6 +96,9 @@ from .const import (
     ENERGY_WEEKDAY_OPTIONS,
     ENTRY_TYPE_DEVICE,
     ENTRY_TYPE_HUB,
+    LEGACY_CONF_IR_OFF_COMMAND,
+    LEGACY_CONF_IR_OFF_REFRESH_DELAY,
+    LEGACY_CONF_IR_OFF_REMOTE,
     TYPE_AC,
 )
 from .discovery import DiscoveredDevice, async_discover_devices, async_probe_host
@@ -928,6 +932,9 @@ class DeviceOptionsFlowHandler(config_entries.OptionsFlow):
                 remote_entity = str(
                     user_input.get(CONF_REMOTE_OFF_ENTITY) or ""
                 ).strip()
+                remote_device = str(
+                    user_input.get(CONF_REMOTE_OFF_DEVICE) or ""
+                ).strip()
                 remote_command = str(
                     user_input.get(CONF_REMOTE_OFF_COMMAND) or ""
                 ).strip()
@@ -935,6 +942,10 @@ class DeviceOptionsFlowHandler(config_entries.OptionsFlow):
                     new_options[CONF_REMOTE_OFF_ENTITY] = remote_entity
                 else:
                     new_options.pop(CONF_REMOTE_OFF_ENTITY, None)
+                if remote_device:
+                    new_options[CONF_REMOTE_OFF_DEVICE] = remote_device
+                else:
+                    new_options.pop(CONF_REMOTE_OFF_DEVICE, None)
                 if remote_command:
                     new_options[CONF_REMOTE_OFF_COMMAND] = remote_command
                 else:
@@ -944,6 +955,12 @@ class DeviceOptionsFlowHandler(config_entries.OptionsFlow):
                         CONF_REMOTE_OFF_REFRESH_DELAY, DEFAULT_REMOTE_OFF_REFRESH_DELAY
                     )
                 )
+                for key in (
+                    LEGACY_CONF_IR_OFF_REMOTE,
+                    LEGACY_CONF_IR_OFF_COMMAND,
+                    LEGACY_CONF_IR_OFF_REFRESH_DELAY,
+                ):
+                    new_options.pop(key, None)
             domain = self.hass.data.get(DOMAIN) or {}
             slot = domain.get(entry.entry_id) or {}
             coord = slot.get(DATA_COORDINATOR)
@@ -1092,19 +1109,34 @@ class DeviceOptionsFlowHandler(config_entries.OptionsFlow):
             vol.Optional(CONF_ENERGY_RESET_TOTAL, default=False): bool,
         }
         if sa_type == TYPE_AC:
+            saved_remote = (
+                opts.get(CONF_REMOTE_OFF_ENTITY)
+                or opts.get(LEGACY_CONF_IR_OFF_REMOTE)
+                or ""
+            )
             remote_key = vol.Optional(CONF_REMOTE_OFF_ENTITY)
-            if opts.get(CONF_REMOTE_OFF_ENTITY):
+            if saved_remote:
                 remote_key = vol.Optional(
                     CONF_REMOTE_OFF_ENTITY,
-                    default=opts[CONF_REMOTE_OFF_ENTITY],
+                    default=saved_remote,
                 )
             schema[remote_key] = selector.EntitySelector(
                 selector.EntitySelectorConfig(domain="remote")
             )
             schema[
                 vol.Optional(
+                    CONF_REMOTE_OFF_DEVICE,
+                    default=opts.get(CONF_REMOTE_OFF_DEVICE, ""),
+                )
+            ] = str
+            schema[
+                vol.Optional(
                     CONF_REMOTE_OFF_COMMAND,
-                    default=opts.get(CONF_REMOTE_OFF_COMMAND, ""),
+                    default=(
+                        opts.get(CONF_REMOTE_OFF_COMMAND)
+                        or opts.get(LEGACY_CONF_IR_OFF_COMMAND)
+                        or ""
+                    ),
                 )
             ] = str
             schema[
@@ -1112,7 +1144,10 @@ class DeviceOptionsFlowHandler(config_entries.OptionsFlow):
                     CONF_REMOTE_OFF_REFRESH_DELAY,
                     default=opts.get(
                         CONF_REMOTE_OFF_REFRESH_DELAY,
-                        DEFAULT_REMOTE_OFF_REFRESH_DELAY,
+                        opts.get(
+                            LEGACY_CONF_IR_OFF_REFRESH_DELAY,
+                            DEFAULT_REMOTE_OFF_REFRESH_DELAY,
+                        ),
                     ),
                 )
             ] = vol.All(vol.Coerce(float), vol.Range(min=0, max=30))
