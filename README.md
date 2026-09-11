@@ -198,6 +198,9 @@ Configure it per AC under the integration's device options:
 
 - **Remote entity for alternate AC power-off** — choose any Home Assistant
   `remote` entity that supports `remote.send_command`.
+- **Remote device/subdevice (optional)** — fill this when the selected remote
+  integration needs Home Assistant's optional `device` argument (for example,
+  Harmony).
 - **Remote power-off command** — enter the command understood by that remote
   integration and accepted by `remote.send_command`.
 - **Delay before refreshing AC state after remote power-off** — after a successful
@@ -209,9 +212,9 @@ Behavior:
 - A successful remote command does **not** optimistically mark the climate entity
   `off`; the AC's real status decides whether it is off or still running a
   post-shutdown mold-dry cycle.
-- If the configured remote is missing, turned off, unavailable, or Home Assistant
-  raises an error from `remote.send_command`, the integration falls back to the
-  normal TaiSEIA power-off.
+- If the configured remote is missing, unavailable, or Home Assistant raises an
+  error from `remote.send_command`, the integration falls back to the normal
+  TaiSEIA power-off.
 - A failed delayed refresh never forces a fallback power-off, because the AC may
   legitimately still be running mold-dry.
 - Repeated OFF presses resend the same remote command, allowing the appliance's
@@ -219,8 +222,11 @@ Behavior:
 - The user-provided remote command is redacted from Home Assistant diagnostics.
 
 Compatibility note: this uses Home Assistant's standard `remote.send_command`
-service with `entity_id` and `command`. A remote integration that requires
-additional service fields beyond those two may need further configuration support.
+service with `entity_id`, `command`, and the optional `device` argument.
+Some remote integrations use their on/off state to mean something other than
+"can send commands", so this feature does not reject a remote merely because its
+state is `off`. Integrations that silently swallow their own transmission
+errors also cannot be distinguished from a successful service call.
 
 ## Diagnostics
 
