@@ -208,8 +208,11 @@ Behavior:
 - A successful IR send does **not** optimistically mark the climate entity
   `off`; the AC's real status decides whether it is off or still running a
   post-shutdown mold-dry cycle.
-- If the configured remote is missing/unavailable, or `remote.send_command`
-  raises an error, the integration falls back to the normal TaiSEIA power-off.
+- If the configured remote is missing, turned off, unavailable, or Home Assistant
+  raises an error from `remote.send_command`, the integration falls back to the
+  normal TaiSEIA power-off. Note that Broadlink currently logs some low-level
+  transmit/network errors without re-raising them, so those cannot be detected
+  reliably by this integration.
 - A failed delayed refresh never forces a fallback power-off, because the AC may
   legitimately still be running mold-dry.
 - Repeated OFF presses resend the same IR command, allowing the appliance's own
