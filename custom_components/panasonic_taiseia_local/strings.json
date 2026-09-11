@@ -71,7 +71,7 @@
     "step": {
       "init": {
         "title": "Panasonic TaiSEIA options",
-        "description": "Hub: account, LAN tunables, energy cycle (shared). Device: name, ModelType, poll interval, house total, control path, and optional IR-assisted AC power-off. When IR off is configured, the selected remote is tried first; if it is off/unavailable or Home Assistant reports a send error, the integration falls back to TaiSEIA. After a successful IR send, the integration waits for the configured delay and refreshes the real AC state without forcing it to off.",
+        "description": "Hub: account, LAN tunables, energy cycle (shared). Device: name, ModelType, poll interval, house total, control path, and optional remote-assisted AC power-off. When configured, the selected Home Assistant remote entity is tried first using remote.send_command; if it is off/unavailable or Home Assistant reports a send error, the integration falls back to TaiSEIA. After a successful remote command, the integration waits for the configured delay and refreshes the real AC state without forcing it to off.",
         "data": {
           "password": "Update password (leave blank to keep)",
           "refresh_cloud": "Re-login and refresh tokens",
@@ -92,9 +92,9 @@
           "energy_reset_period": "Reset period energy now",
           "energy_reset_total": "Reset total energy now",
           "control_mode": "Control path (hybrid = cloud-first write / LAN-first read)",
-          "ir_off_remote": "IR transmitter for mold-dry power-off",
-          "ir_off_command": "IR power-off command (b64:...)",
-          "ir_off_refresh_delay": "Delay before refreshing AC state after IR off (seconds; 0 = disabled)"
+          "remote_off_entity": "Remote entity for alternate AC power-off",
+          "remote_off_command": "Remote power-off command",
+          "remote_off_refresh_delay": "Delay before refreshing AC state after remote power-off (seconds; 0 = disabled)"
         }
       }
     }
