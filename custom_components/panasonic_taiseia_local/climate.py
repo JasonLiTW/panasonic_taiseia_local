@@ -34,6 +34,7 @@ from .const import (
     CLIMATE_MINIMUM_TEMPERATURE,
     CLIMATE_TEMPERATURE_STEP,
     CONF_REMOTE_OFF_COMMAND,
+    CONF_REMOTE_OFF_DEVICE,
     CONF_REMOTE_OFF_REFRESH_DELAY,
     CONF_REMOTE_OFF_ENTITY,
     DATA_CLIENT,
@@ -41,6 +42,9 @@ from .const import (
     DATA_PROFILE,
     DEFAULT_REMOTE_OFF_REFRESH_DELAY,
     DOMAIN,
+    LEGACY_CONF_IR_OFF_COMMAND,
+    LEGACY_CONF_IR_OFF_REFRESH_DELAY,
+    LEGACY_CONF_IR_OFF_REMOTE,
     ICON_CLIMATE,
     LABEL_CLIMATE,
     STATUS_FAN,
@@ -94,26 +98,44 @@ class TaiSeiaClimate(TaiSeiaBaseEntity, ClimateEntity):
         self._remote_refresh_task: asyncio.Task | None = None
         super().__init__(coordinator, client, entry_id)
 
-    def _remote_off_options(self) -> tuple[str | None, str | None, float]:
+    def _remote_off_options(
+        self,
+    ) -> tuple[str | None, str | None, str | None, float]:
         """Return per-device remote power-off configuration."""
         entry = self.hass.config_entries.async_get_entry(self.entry_id)
         if entry is None:
-            return None, None, DEFAULT_REMOTE_OFF_REFRESH_DELAY
-        remote_entity = (
-            str(entry.options.get(CONF_REMOTE_OFF_ENTITY) or "").strip() or None
-        )
-        command = (
-            str(entry.options.get(CONF_REMOTE_OFF_COMMAND) or "").strip() or None
-        )
+            return None, None, None, DEFAULT_REMOTE_OFF_REFRESH_DELAY
+
+        options = entry.options
+        remote_entity = str(
+            options.get(CONF_REMOTE_OFF_ENTITY)
+            or options.get(LEGACY_CONF_IR_OFF_REMOTE)
+            or ""
+        ).strip() or None
+        remote_device = str(options.get(CONF_REMOTE_OFF_DEVICE) or "").strip() or None
+        command = str(
+            options.get(CONF_REMOTE_OFF_COMMAND)
+            or options.get(LEGACY_CONF_IR_OFF_COMMAND)
+            or ""
+        ).strip() or None
         try:
             delay = float(
-                entry.options.get(
-                    CONF_REMOTE_OFF_REFRESH_DELAY, DEFAULT_REMOTE_OFF_REFRESH_DELAY
+                options.get(
+                    CONF_REMOTE_OFF_REFRESH_DELAY,
+                    options.get(
+                        LEGACY_CONF_IR_OFF_REFRESH_DELAY,
+                        DEFAULT_REMOTE_OFF_REFRESH_DELAY,
+                    ),
                 )
             )
         except (TypeError, ValueError):
             delay = DEFAULT_REMOTE_OFF_REFRESH_DELAY
-        return remote_entity, command, max(0.0, min(delay, 30.0))
+        return (
+            remote_entity,
+            remote_device,
+            command,
+            max(0.0, min(delay, 30.0)),
+        )
 
     async def _async_refresh_after_remote_off(self, delay: float) -> None:
         """Refresh real appliance state after a remote power-off command."""
@@ -151,7 +173,9 @@ class TaiSeiaClimate(TaiSeiaBaseEntity, ClimateEntity):
 
         Return True only when Home Assistant accepts the service call.
         """
-        remote_entity, command, refresh_delay = self._remote_off_options()
+        remote_entity, remote_device, command, refresh_delay = (
+            self._remote_off_options()
+        )
         if not remote_entity or not command:
             return False
 
@@ -168,13 +192,16 @@ class TaiSeiaClimate(TaiSeiaBaseEntity, ClimateEntity):
             return False
 
         try:
+            service_data = {
+                "entity_id": remote_entity,
+                "command": command,
+            }
+            if remote_device:
+                service_data["device"] = remote_device
             await self.hass.services.async_call(
                 "remote",
                 "send_command",
-                {
-                    "entity_id": remote_entity,
-                    "command": command,
-                },
+                service_data,
                 blocking=True,
             )
         except Exception as err:  # noqa: BLE001
@@ -198,7 +225,10 @@ class TaiSeiaClimate(TaiSeiaBaseEntity, ClimateEntity):
         return True
 
     async def async_will_remove_from_hass(self) -> None:
-        if self._remote_refresh_task is not None and not self._remote_refresh_task.done():
+        if (
+            self._remote_refresh_task is not None
+            and not self._remote_refresh_task.done()
+        ):
             self._remote_refresh_task.cancel()
         await super().async_will_remove_from_hass()
 
