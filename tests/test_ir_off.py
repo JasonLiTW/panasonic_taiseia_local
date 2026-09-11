@@ -57,6 +57,7 @@ def _stub_homeassistant() -> None:
 
     const = pkg("homeassistant.const")
     const.ATTR_TEMPERATURE = "temperature"
+    const.STATE_OFF = "off"
     const.STATE_UNAVAILABLE = "unavailable"
     const.UnitOfTemperature = SimpleNamespace(CELSIUS="°C")
 
