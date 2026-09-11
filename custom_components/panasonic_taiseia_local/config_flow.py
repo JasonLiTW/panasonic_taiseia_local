@@ -925,8 +925,12 @@ class DeviceOptionsFlowHandler(config_entries.OptionsFlow):
                 user_input.get(CONF_ENERGY_INCLUDE_HOUSE, True)
             )
             if sa_type == TYPE_AC:
-                remote_entity = str(user_input.get(CONF_REMOTE_OFF_ENTITY) or "").strip()
-                remote_command = str(user_input.get(CONF_REMOTE_OFF_COMMAND) or "").strip()
+                remote_entity = str(
+                    user_input.get(CONF_REMOTE_OFF_ENTITY) or ""
+                ).strip()
+                remote_command = str(
+                    user_input.get(CONF_REMOTE_OFF_COMMAND) or ""
+                ).strip()
                 if remote_entity:
                     new_options[CONF_REMOTE_OFF_ENTITY] = remote_entity
                 else:
