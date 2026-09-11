@@ -99,8 +99,12 @@ class TaiSeiaClimate(TaiSeiaBaseEntity, ClimateEntity):
         entry = self.hass.config_entries.async_get_entry(self.entry_id)
         if entry is None:
             return None, None, DEFAULT_REMOTE_OFF_REFRESH_DELAY
-        remote_entity = str(entry.options.get(CONF_REMOTE_OFF_ENTITY) or "").strip() or None
-        command = str(entry.options.get(CONF_REMOTE_OFF_COMMAND) or "").strip() or None
+        remote_entity = (
+            str(entry.options.get(CONF_REMOTE_OFF_ENTITY) or "").strip() or None
+        )
+        command = (
+            str(entry.options.get(CONF_REMOTE_OFF_COMMAND) or "").strip() or None
+        )
         try:
             delay = float(
                 entry.options.get(
@@ -122,14 +126,18 @@ class TaiSeiaClimate(TaiSeiaBaseEntity, ClimateEntity):
             # The remote command already succeeded. Never force a TaiSEIA OFF only
             # because the follow-up read failed; the AC may be in mold-dry.
             _LOGGER.warning(
-                "[%s] remote power-off command was sent, but delayed status refresh failed: %s",
+                "[%s] remote power-off command was sent, but delayed status "
+                "refresh failed: %s",
                 self.label,
                 err,
             )
 
     def _schedule_remote_refresh(self, delay: float) -> None:
         """Keep only the newest delayed refresh after repeated OFF presses."""
-        if self._remote_refresh_task is not None and not self._remote_refresh_task.done():
+        if (
+            self._remote_refresh_task is not None
+            and not self._remote_refresh_task.done()
+        ):
             self._remote_refresh_task.cancel()
         if delay <= 0:
             self._remote_refresh_task = None
@@ -139,7 +147,10 @@ class TaiSeiaClimate(TaiSeiaBaseEntity, ClimateEntity):
         )
 
     async def _async_try_remote_off(self) -> bool:
-        """Send configured remote power-off command; return True only when accepted by HA."""
+        """Send configured remote power-off command.
+
+        Return True only when Home Assistant accepts the service call.
+        """
         remote_entity, command, refresh_delay = self._remote_off_options()
         if not remote_entity or not command:
             return False
