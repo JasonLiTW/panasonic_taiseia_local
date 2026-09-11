@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from enum import IntFlag
 import sys
 import types
@@ -149,6 +150,7 @@ def _make_entity(
         config_entries=_ConfigEntries(options),
         states=_States(remote_state),
         services=_Services(service_error),
+        async_create_task=asyncio.create_task,
     )
     entity.hass = hass
     return entity, hass
@@ -204,6 +206,31 @@ class RemoteOffTest(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(result)
         args, _kwargs = hass.services.calls[0]
         self.assertEqual(args[2]["command"], "b64:legacy-command")
+
+    async def test_delayed_refresh_runs_after_remote_success(self) -> None:
+        entity, _hass = _make_entity(
+            options={
+                CONF_REMOTE_OFF_ENTITY: "remote.test",
+                CONF_REMOTE_OFF_COMMAND: "PowerOff",
+                CONF_REMOTE_OFF_REFRESH_DELAY: 0.001,
+            }
+        )
+
+        result = await entity._async_try_remote_off()
+        await asyncio.sleep(0.01)
+
+        self.assertTrue(result)
+        entity.coordinator.async_request_refresh.assert_awaited_once()
+
+    async def test_refresh_failure_does_not_turn_into_send_failure(self) -> None:
+        entity, _hass = _make_entity()
+        entity.coordinator.async_request_refresh.side_effect = RuntimeError(
+            "refresh failed"
+        )
+
+        await entity._async_refresh_after_remote_off(0)
+
+        entity.coordinator.async_request_refresh.assert_awaited_once()
 
     async def test_unavailable_remote_requests_fallback(self) -> None:
         entity, hass = _make_entity(remote_state="unavailable")
