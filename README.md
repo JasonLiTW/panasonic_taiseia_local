@@ -188,6 +188,34 @@ include_sensor_classes: temperature,humidity,power
 
 See the card README for full options. This integration’s climate / humidifier entities and their sibling switches, selects, numbers, and sensors work out of the box.
 
+## Optional IR-assisted AC power-off
+
+This fork can route an AC `OFF` request through any Home Assistant `remote`
+entity first (for example, a Broadlink RM4) while keeping the TaiSEIA climate
+entity as the single source of truth.
+
+Configure it per AC under the integration's device options:
+
+- **IR transmitter for mold-dry power-off** — choose a `remote` entity.
+- **IR power-off command** — paste the learned command (for example a `b64:...`
+  value accepted by `remote.send_command`).
+- **Delay before refreshing AC state after IR off** — after a successful IR send,
+  wait this many seconds and refresh the real TaiSEIA state. Set to `0` to
+  disable the extra refresh.
+
+Behavior:
+
+- A successful IR send does **not** optimistically mark the climate entity
+  `off`; the AC's real status decides whether it is off or still running a
+  post-shutdown mold-dry cycle.
+- If the configured remote is missing/unavailable, or `remote.send_command`
+  raises an error, the integration falls back to the normal TaiSEIA power-off.
+- A failed delayed refresh never forces a fallback power-off, because the AC may
+  legitimately still be running mold-dry.
+- Repeated OFF presses resend the same IR command, allowing the appliance's own
+  firmware to handle "press OFF again to stop mold-dry" behavior.
+- The user-provided IR command is redacted from Home Assistant diagnostics.
+
 ## Diagnostics
 
 Download diagnostics from the config entry, or use developer services `probe_device` / `read_service` / `write_service` / `scan_lan`.
