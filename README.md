@@ -188,6 +188,46 @@ include_sensor_classes: temperature,humidity,power
 
 See the card README for full options. This integration’s climate / humidifier entities and their sibling switches, selects, numbers, and sensors work out of the box.
 
+## Optional remote-assisted AC power-off
+
+This fork can route an AC `OFF` request through any compatible Home Assistant
+`remote` entity first, while keeping the TaiSEIA climate entity as the single
+source of truth.
+
+Configure it per AC under the integration's device options:
+
+- **Remote entity for alternate AC power-off** — choose any Home Assistant
+  `remote` entity that supports `remote.send_command`.
+- **Remote device/subdevice (optional)** — fill this when the selected remote
+  integration needs Home Assistant's optional `device` argument (for example,
+  Harmony).
+- **Remote power-off command** — enter the command understood by that remote
+  integration and accepted by `remote.send_command`.
+- **Delay before refreshing AC state after remote power-off** — after a successful
+  remote command, wait this many seconds and refresh the real TaiSEIA state.
+  Set to `0` to disable the extra refresh.
+
+Behavior:
+
+- A successful remote command does **not** optimistically mark the climate entity
+  `off`; the AC's real status decides whether it is off or still running a
+  post-shutdown mold-dry cycle.
+- If the configured remote is missing, unavailable, or Home Assistant raises an
+  error from `remote.send_command`, the integration falls back to the normal
+  TaiSEIA power-off.
+- A failed delayed refresh never forces a fallback power-off, because the AC may
+  legitimately still be running mold-dry.
+- Repeated OFF presses resend the same remote command, allowing the appliance's
+  own firmware to handle "press OFF again to stop mold-dry" behavior.
+- The user-provided remote command is redacted from Home Assistant diagnostics.
+
+Compatibility note: this uses Home Assistant's standard `remote.send_command`
+service with `entity_id`, `command`, and the optional `device` argument.
+Some remote integrations use their on/off state to mean something other than
+"can send commands", so this feature does not reject a remote merely because its
+state is `off`. Integrations that silently swallow their own transmission
+errors also cannot be distinguished from a successful service call.
+
 ## Diagnostics
 
 Download diagnostics from the config entry, or use developer services `probe_device` / `read_service` / `write_service` / `scan_lan`.

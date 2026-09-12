@@ -17,6 +17,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_NAME, CONF_PASSWORD
 from homeassistant.core import callback, HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
+from homeassistant.helpers import selector
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 import homeassistant.helpers.config_validation as cv
 
@@ -61,6 +62,10 @@ from .const import (
     CONF_ENTRY_TYPE,
     CONF_HUB_ENTRY_ID,
     CONF_INDOOR_MODEL,
+    CONF_REMOTE_OFF_COMMAND,
+    CONF_REMOTE_OFF_DEVICE,
+    CONF_REMOTE_OFF_REFRESH_DELAY,
+    CONF_REMOTE_OFF_ENTITY,
     CONF_MAX_CONCURRENT,
     CONF_MODEL_TYPE,
     CONF_REFRESH_TOKEN,
@@ -79,6 +84,7 @@ from .const import (
     DEFAULT_ENERGY_CYCLE_DAYS,
     DEFAULT_ENERGY_RESET_DAY,
     DEFAULT_ENERGY_RESET_WEEKDAY,
+    DEFAULT_REMOTE_OFF_REFRESH_DELAY,
     DEFAULT_MAX_CONCURRENT,
     DEFAULT_REQUEST_RETRIES,
     DEFAULT_REQUEST_RETRY_DELAY,
@@ -90,6 +96,9 @@ from .const import (
     ENERGY_WEEKDAY_OPTIONS,
     ENTRY_TYPE_DEVICE,
     ENTRY_TYPE_HUB,
+    LEGACY_CONF_IR_OFF_COMMAND,
+    LEGACY_CONF_IR_OFF_REFRESH_DELAY,
+    LEGACY_CONF_IR_OFF_REMOTE,
     TYPE_AC,
 )
 from .discovery import DiscoveredDevice, async_discover_devices, async_probe_host
@@ -919,6 +928,39 @@ class DeviceOptionsFlowHandler(config_entries.OptionsFlow):
             new_options[CONF_ENERGY_INCLUDE_HOUSE] = bool(
                 user_input.get(CONF_ENERGY_INCLUDE_HOUSE, True)
             )
+            if sa_type == TYPE_AC:
+                remote_entity = str(
+                    user_input.get(CONF_REMOTE_OFF_ENTITY) or ""
+                ).strip()
+                remote_device = str(
+                    user_input.get(CONF_REMOTE_OFF_DEVICE) or ""
+                ).strip()
+                remote_command = str(
+                    user_input.get(CONF_REMOTE_OFF_COMMAND) or ""
+                ).strip()
+                if remote_entity:
+                    new_options[CONF_REMOTE_OFF_ENTITY] = remote_entity
+                else:
+                    new_options.pop(CONF_REMOTE_OFF_ENTITY, None)
+                if remote_device:
+                    new_options[CONF_REMOTE_OFF_DEVICE] = remote_device
+                else:
+                    new_options.pop(CONF_REMOTE_OFF_DEVICE, None)
+                if remote_command:
+                    new_options[CONF_REMOTE_OFF_COMMAND] = remote_command
+                else:
+                    new_options.pop(CONF_REMOTE_OFF_COMMAND, None)
+                new_options[CONF_REMOTE_OFF_REFRESH_DELAY] = float(
+                    user_input.get(
+                        CONF_REMOTE_OFF_REFRESH_DELAY, DEFAULT_REMOTE_OFF_REFRESH_DELAY
+                    )
+                )
+                for key in (
+                    LEGACY_CONF_IR_OFF_REMOTE,
+                    LEGACY_CONF_IR_OFF_COMMAND,
+                    LEGACY_CONF_IR_OFF_REFRESH_DELAY,
+                ):
+                    new_options.pop(key, None)
             domain = self.hass.data.get(DOMAIN) or {}
             slot = domain.get(entry.entry_id) or {}
             coord = slot.get(DATA_COORDINATOR)
@@ -1066,6 +1108,49 @@ class DeviceOptionsFlowHandler(config_entries.OptionsFlow):
             vol.Optional(CONF_ENERGY_RESET_PERIOD, default=False): bool,
             vol.Optional(CONF_ENERGY_RESET_TOTAL, default=False): bool,
         }
+        if sa_type == TYPE_AC:
+            saved_remote = (
+                opts.get(CONF_REMOTE_OFF_ENTITY)
+                or opts.get(LEGACY_CONF_IR_OFF_REMOTE)
+                or ""
+            )
+            remote_key = vol.Optional(CONF_REMOTE_OFF_ENTITY)
+            if saved_remote:
+                remote_key = vol.Optional(
+                    CONF_REMOTE_OFF_ENTITY,
+                    default=saved_remote,
+                )
+            schema[remote_key] = selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="remote")
+            )
+            schema[
+                vol.Optional(
+                    CONF_REMOTE_OFF_DEVICE,
+                    default=opts.get(CONF_REMOTE_OFF_DEVICE, ""),
+                )
+            ] = str
+            schema[
+                vol.Optional(
+                    CONF_REMOTE_OFF_COMMAND,
+                    default=(
+                        opts.get(CONF_REMOTE_OFF_COMMAND)
+                        or opts.get(LEGACY_CONF_IR_OFF_COMMAND)
+                        or ""
+                    ),
+                )
+            ] = str
+            schema[
+                vol.Optional(
+                    CONF_REMOTE_OFF_REFRESH_DELAY,
+                    default=opts.get(
+                        CONF_REMOTE_OFF_REFRESH_DELAY,
+                        opts.get(
+                            LEGACY_CONF_IR_OFF_REFRESH_DELAY,
+                            DEFAULT_REMOTE_OFF_REFRESH_DELAY,
+                        ),
+                    ),
+                )
+            ] = vol.All(vol.Coerce(float), vol.Range(min=0, max=30))
         slot = (self.hass.data.get(DOMAIN) or {}).get(entry.entry_id) or {}
         coord = slot.get(DATA_COORDINATOR)
         cloud_only = bool(coord and (getattr(coord, "data", None) or {}).get("cloud_only"))

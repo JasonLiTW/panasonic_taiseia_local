@@ -71,7 +71,7 @@
     "step": {
       "init": {
         "title": "Panasonic TaiSEIA options",
-        "description": "Hub: account, LAN tunables, energy cycle (shared). Device: name, ModelType, poll interval, house total, control path (hybrid/local/cloud), control path (hybrid/local/cloud). Without a hub, shared fields appear on the device options.",
+        "description": "Hub: account, LAN tunables, energy cycle (shared). Device: name, ModelType, poll interval, house total, control path, and optional remote-assisted AC power-off. When configured, the selected Home Assistant remote entity is tried first using remote.send_command; integrations such as Harmony can also use the optional device/subdevice field. If the remote is unavailable or Home Assistant reports a send error, the integration falls back to TaiSEIA. After a successful remote command, the integration waits for the configured delay and refreshes the real AC state without forcing it to off.",
         "data": {
           "password": "Update password (leave blank to keep)",
           "refresh_cloud": "Re-login and refresh tokens",
@@ -91,7 +91,11 @@
           "energy_reset_weekday": "Weekday to reset (weekly only)",
           "energy_reset_period": "Reset period energy now",
           "energy_reset_total": "Reset total energy now",
-          "control_mode": "Control path (hybrid = cloud-first write / LAN-first read)"
+          "control_mode": "Control path (hybrid = cloud-first write / LAN-first read)",
+          "remote_off_entity": "Remote entity for alternate AC power-off",
+          "remote_off_command": "Remote power-off command",
+          "remote_off_refresh_delay": "Delay before refreshing AC state after remote power-off (seconds; 0 = disabled)",
+          "remote_off_device": "Remote device/subdevice (optional)"
         }
       }
     }

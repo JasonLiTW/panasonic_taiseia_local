@@ -58,6 +58,19 @@ CONF_DEVICE_TYPE = "device_type"
 CONF_INDOOR_MODEL = "indoor_model"
 CONF_MODEL_TYPE = "model_type"
 
+# Optional remote-assisted AC power-off. The command is user-provided in
+# config-entry options and is passed verbatim to Home Assistant remote.send_command.
+CONF_REMOTE_OFF_ENTITY = "remote_off_entity"
+CONF_REMOTE_OFF_DEVICE = "remote_off_device"
+CONF_REMOTE_OFF_COMMAND = "remote_off_command"
+CONF_REMOTE_OFF_REFRESH_DELAY = "remote_off_refresh_delay"
+DEFAULT_REMOTE_OFF_REFRESH_DELAY = 2.0
+
+# Backward compatibility for early development builds of this feature.
+LEGACY_CONF_IR_OFF_REMOTE = "ir_off_remote"
+LEGACY_CONF_IR_OFF_COMMAND = "ir_off_command"
+LEGACY_CONF_IR_OFF_REFRESH_DELAY = "ir_off_refresh_delay"
+
 # Energy options (cycle/reset_* are shared domain-wide; others per entry)
 CONF_ENERGY_ENABLED = "energy_enabled"
 CONF_ENERGY_INCLUDE_HOUSE = "energy_include_house"

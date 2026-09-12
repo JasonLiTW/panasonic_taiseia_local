@@ -187,6 +187,35 @@ include_sensor_classes: temperature,humidity,power
 
 詳見卡片倉庫 README；本整合的 climate／humidifier 與同裝置開關、選項、數值、感測器皆可直接套用。
 
+## 選用：Remote 輔助冷氣關機
+
+這個 fork 可以在原本的 TaiSEIA `climate` 實體收到 `OFF` 時，
+先改由任意相容的 Home Assistant `remote` 實體送出關機命令。
+功能不綁特定品牌、RM4 或紅外線。
+
+每台冷氣可在整合的裝置選項設定：
+
+- **替代關機 Remote 實體**：選擇支援 `remote.send_command` 的
+  Home Assistant `remote` 實體。
+- **Remote 裝置／子裝置（選填）**：若該 remote 整合需要標準
+  `device` 參數（例如 Harmony）才需要填。
+- **Remote 關機命令**：填入該 remote 整合可接受的命令。
+- **Remote 關機後重新讀取狀態延遲**：命令成功後等待指定秒數，
+  再主動刷新 TaiSEIA 真實狀態；設為 `0` 代表停用額外刷新。
+
+行為：
+
+- Remote 命令成功後**不會先把 climate 假設成 off**，而是以冷氣
+  實際回報為準，因此乾燥防霉期間仍可維持 on。
+- Remote 實體不存在／不可用，或 `remote.send_command` 明確拋錯時，
+  會自動回退原本的 TaiSEIA 關機。
+- 延遲刷新失敗不會再強制 TaiSEIA 關機，避免誤中斷乾燥防霉。
+- 再按一次 OFF 會再送一次相同 Remote 命令。
+- 使用者填入的 Remote 命令會在 HA 診斷資料中遮罩。
+- 不會因 remote 的 state 是 `off` 就直接判定不能送；不同 remote
+  整合對 on/off 的定義不同。若某個整合自己吞掉實際傳送錯誤，
+  本整合也無法可靠判斷該次命令是否真的送出。
+
 ## 診斷
 
 設定條目可下載診斷；開發者服務：`probe_device`／`read_service`／`write_service`／`scan_lan`。
